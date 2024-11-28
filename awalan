@@ -1,0 +1,75 @@
+#include <Servo.h>  // Library untuk mengendalikan servo
+
+int water;  // Variabel untuk status sensor kelembaban tanah
+Servo statusServo;  // Membuat objek servo
+
+// Pin untuk relay dan sensor
+int relayPompaTanah = 3;  // Output pin untuk relay pertama (pompa tanah)
+int relayPompaAir = 4;    // Output pin untuk relay kedua (pompa sensor ultrasonik)
+int sensorTanah = 6;      // Input pin untuk sensor kelembaban tanah
+int trigPin = 7;          // Pin Trigger untuk sensor ultrasonik
+int echoPin = 8;          // Pin Echo untuk sensor ultrasonik
+
+void setup() {
+  Serial.begin(9600);  // Inisialisasi komunikasi serial pada 9600 baud
+  pinMode(relayPompaTanah, OUTPUT);  // Output pin untuk relay pompa tanah
+  pinMode(relayPompaAir, OUTPUT);    // Output pin untuk relay pompa air
+  pinMode(sensorTanah, INPUT);       // Input pin untuk sensor kelembaban tanah
+  pinMode(trigPin, OUTPUT);          // Pin Trigger untuk sensor ultrasonik
+  pinMode(echoPin, INPUT);           // Pin Echo untuk sensor ultrasonik
+  statusServo.attach(9);             // Menghubungkan servo ke pin 9
+  statusServo.write(0);              // Servo berada pada posisi awal (0 derajat, sistem mati)
+
+  // Mematikan kedua pompa saat inisialisasi
+  digitalWrite(relayPompaTanah, LOW); 
+  digitalWrite(relayPompaAir, LOW);
+}
+
+void loop() {
+  // Membaca status dari sensor kelembaban tanah
+  water = digitalRead(sensorTanah);  
+
+  // Membaca jarak dari sensor ultrasonik
+  long jarak = getDistance();  // Fungsi untuk mendapatkan jarak dari sensor ultrasonik
+
+  // Menampilkan jarak dari sensor ultrasonik pada Serial Monitor
+  Serial.print("Jarak Air: ");
+  Serial.print(jarak);  // Menampilkan jarak dalam cm
+  Serial.println(" cm");
+
+  // Mengontrol pompa berdasarkan kelembaban tanah
+  if (water == LOW) {  // Jika tanah kering, hidupkan pompa tanah
+    digitalWrite(relayPompaTanah, HIGH);  // Menghidupkan pompa tanah
+    statusServo.write(90);  // Servo bergerak ke 90 derajat, menandakan sistem hidup
+  }
+  else {  // Jika tanah lembab, matikan pompa tanah
+    digitalWrite(relayPompaTanah, LOW);  // Mematikan pompa tanah
+    statusServo.write(0);   // Servo kembali ke posisi awal (0 derajat, sistem mati)
+  }
+
+  // Mengontrol pompa berdasarkan sensor ultrasonik
+  if (jarak <= 4) {  // Jika jarak air kurang dari atau sama dengan 4 cm, matikan pompa air
+    digitalWrite(relayPompaAir, LOW);  // Mematikan pompa air
+  } else {  // Jika jarak lebih dari 4 cm, hidupkan pompa air
+    digitalWrite(relayPompaAir, HIGH);  // Menghidupkan pompa air
+  }
+
+  delay(400);  // Menunggu 400ms sebelum membaca ulang
+}
+
+// Fungsi untuk mengukur jarak menggunakan sensor ultrasonik
+long getDistance() {
+  // Kirim sinyal trigger
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // Menghitung durasi sinyal echo
+  long durasi = pulseIn(echoPin, HIGH);
+  
+  // Menghitung jarak berdasarkan durasi
+  long jarak = (durasi / 2) / 29.1;  // Menggunakan rumus jarak: jarak (cm) = durasi (us) / 2 * 0.0343
+  return jarak;
+}
